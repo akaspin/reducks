@@ -1,0 +1,6 @@
+%% -*- erlang -*-
+{application, reducks,
+ [{description, "Reducks caching"},
+  {vsn, "0.1"},
+  {modules, []},
+  {applications, [kernel, stdlib]}]}.
