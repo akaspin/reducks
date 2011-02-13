@@ -107,12 +107,12 @@ wait(Client, Key, Make, Timeout) ->
             try_get(Client, Key, Make, Timeout);
         LockTTL ->
             %% ohh let's wait
-            erldis:subscribe(Client, KeyLock, self()),
+            Subscribers = erldis:subscribe(Client, KeyLock, self()),
             receive
                 {message, KeyLock, <<"ok">>} ->
                     erldis:unsubscribe(Client, KeyLock),
                     try_get(Client, Key, Make, Timeout)
-            after LockTTL ->
+            after LockTTL + Subscribers * 1000 ->
                 erldis:unsubscribe(Client, KeyLock),
                 try_get(Client, Key, Make, Timeout)
             end
