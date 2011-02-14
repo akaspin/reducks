@@ -31,7 +31,7 @@ compile: rebar
 doc: rebar
 	@exec $(REBAR) doc skip_deps=true
 
-test: rebar
+test: compile 
 	@-rm -rf .eunit
 	@-rm TEST*
 	@mkdir -p .eunit

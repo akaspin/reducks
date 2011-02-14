@@ -10,7 +10,7 @@
 
 
 -module(reducks).
--export([snap/3, snap/4]).
+-export([snap/3, snap/4, purge/2, add_tags/3]).
 
 %% Types
 %% @type key() = binary(). Key in cache.
@@ -62,6 +62,43 @@ snap(Client, Key, {Field, Value}, {Make, Timeout}) ->
             try_get(Client, Key, Make, Timeout)
     end.
 
+%% @spec purge(Client, Key::key()) - any()
+%% @doc Jently delete key after all served.
+purge(Client, Key) ->
+    KeyLock = get_lock_key(Key),
+    case erldis:ttl(Client, KeyLock) of
+        -1 ->
+            %% no lock - delete
+            erldis:del(Client, Key);
+        LockTTL -> 
+            %% lock exists - subscribe and wait
+            Subscribers = erldis:subscribe(Client, KeyLock, self()),
+            receive
+                {message, KeyLock, <<"ok">>} ->
+                    case erldis:unsubscribe(Client, KeyLock) of
+                        {_, 0} -> 
+                            erldis:del(Client, Key);
+                        {_, _} -> 
+                            purge(Client, Key)
+                    end
+            after LockTTL + Subscribers * 1000 ->
+                    case erldis:unsubscribe(Client, KeyLock) of
+                        {_, 0} -> 
+                            erldis:del(Client, Key);
+                        {_, _} -> 
+                            purge(Client, Key)
+                    end
+            end
+    end.
+
+add_tags(_Client, _Key, []) ->
+    ok;
+add_tags(Client, Key, [Tag|Rest]) ->
+    erldis:sadd(Client, <<"tag:", Tag/binary>>, Key),
+    add_tags(Client, Key, Rest).
+
+
+
 %% 
 %% Private
 %% 
@@ -80,7 +117,10 @@ try_get(Client, Key, Make, Timeout) ->
 
 %% @doc try to set data
 try_set(Client, Key, Make, Timeout) ->
-    KeyLock = <<Key/binary, ":lock">>,
+    KeyLock = get_lock_key(Key),
+    {A1,A2,A3} = now(),
+    random:seed(A1, A2, A3),
+    timer:sleep(random:uniform(100)),
     case erldis:setnx(Client, KeyLock, <<"lock">>) of
         true ->
             %% ok - make it
@@ -101,7 +141,7 @@ try_set(Client, Key, Make, Timeout) ->
 
 %% wait for unlock or lock expiration
 wait(Client, Key, Make, Timeout) ->
-    KeyLock = <<Key/binary, ":lock">>,
+    KeyLock = get_lock_key(Key),
     case erldis:ttl(Client, KeyLock) of
         -1 ->
             try_get(Client, Key, Make, Timeout);
@@ -112,33 +152,22 @@ wait(Client, Key, Make, Timeout) ->
                 {message, KeyLock, <<"ok">>} ->
                     erldis:unsubscribe(Client, KeyLock),
                     try_get(Client, Key, Make, Timeout)
-            after LockTTL + Subscribers * 1000 ->
+            after (LockTTL * 1000 - Subscribers * 1000) ->
                 erldis:unsubscribe(Client, KeyLock),
                 try_get(Client, Key, Make, Timeout)
             end
-        
     end.
+
+
+get_lock_key(Key) ->
+    <<Key/binary, ":lock">>.
 
 %%
 %% Tests
 %%
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
+-compile(export_all).
 
-simple_test() ->
-    Key = <<"key">>,
-    D = "Some Data",
-    Expect = {ok, [{<<"tag">>, <<"tag">>}, {<<"f">>, list_to_binary(D)}]},
-    {ok, Client} = erldis:connect(),
-     ?assertEqual(ok, erldis:flushdb(Client)),
-    Make = fun() -> 
-        {{data, 
-          [{<<"tag">>, <<"tag">>}, {<<"f">>, list_to_binary(D)}]}, 
-         {ttl, 300}}
-    end,
-    ?assertEqual(Expect, snap(Client, Key, {<<"tag">>, <<"tag">>}, {Make})),
-    ?assertEqual({ok, equal}, snap(Client, Key, {<<"tag">>, <<"tag">>}, {Make})),
-    ?assertEqual({ok, equal}, snap(Client, Key, {<<"tag">>, <<"tag">>}, {Make})),
-%%     ?assertEqual(Expect, snap(Client, Key, {Make})),
-    ok.
+
 -endif.
