@@ -1,10 +1,17 @@
 %%% @version 0.1
 
 -module(reducks).
--export([snap/3]).
+-export([snap/3, snap/4, purge/2]).
 
+snap(Client, Key, {Field, Value}, {Make}) ->
+    snap(Client, Key, {Field, Value}, {Make, 120000});
 snap(Client, Key, {Field, Value}, {Make, Timeout}) ->
-    ok.
+    case erldis:hget(Client, Key, Field) of
+        Value ->
+            {ok, equal};
+        _ ->
+            snap(Client, Key, {Make, Timeout})
+    end.
 
 snap(Client, Key, {Make}) ->
     snap(Client, Key, {Make, 120000});
@@ -62,10 +69,13 @@ snap(Client, Key, {Make, Timeout}) ->
             {ok, Data}
     end.
 
+%% @doc Purge keys
+purge(Client, Keys) ->
+    erldis:delkeys(Client, Keys).
+
 %% 
 %% Private 
 %% 
-
 
 set_data(Client, Key, Make, Timeout, KeyLock) ->
     {{data, Data}, {ttl, TTL}} = Make(),

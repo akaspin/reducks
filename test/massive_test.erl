@@ -6,39 +6,40 @@
 
 normal_timeout_test_() -> 
     {"Timeout > make",
-     setup, fun flushall/0,
-     fun(_) -> catch_results(<<"1">>, <<"400">>) end,
+     setup, fun test_util:flushall/0,
+     fun(_) -> 
+             catch_results(<<"1">>, <<"60">>),
+             test_util:flushall()
+     end,
      {inorder, [
       {inparallel, 
-       [fun() -> race_op(I, 120000) end || I <- lists:seq(1, 300) ] },
+       [fun() -> race_op(I, 120000) end || I <- lists:seq(1, 50) ] },
       fun() -> timer:sleep(100) end,
       {inparallel, 
-       [fun() -> race_op(I, 120000) end || I <- lists:seq(1, 100) ] }
+       [fun() -> race_op(I, 120000) end || I <- lists:seq(1, 10) ] }
      ]}
      }.
 small_timeout_test_() -> 
     {"Timeout = make",
-     setup, fun flushall/0,
-     fun(_) -> catch_results(<<"2">>, <<"400">>) end,
-     {inorder, [
+     setup, fun test_util:flushall/0,
+     fun(_) -> 
+             catch_results(<<"2">>, <<"30">>),
+             test_util:flushall() 
+     end,
       {inparallel, 
-       [fun() -> race_op(I, 10) end || I <- lists:seq(1, 300) ] },
-      fun() -> timer:sleep(100) end,
-      {inparallel, 
-       [fun() -> race_op(I, 10) end || I <- lists:seq(1, 100) ] }
-     ]}
+       [fun() -> race_op(I, 10) end || I <- lists:seq(1, 30) ] }
      }.
 
 def_timeout_test_() -> 
     {"Default timeout",
-     setup, fun flushall/0,
-     fun(_) -> catch_results(<<"1">>, <<"400">>) end,
+     setup, fun test_util:flushall/0,
+     fun(_) -> 
+             catch_results(<<"1">>, <<"10">>),
+             test_util:flushall()
+     end,
      {inorder, [
       {inparallel, 
-       [fun() -> def_timeout_op(I) end || I <- lists:seq(1, 300) ] },
-      fun() -> timer:sleep(100) end,
-      {inparallel, 
-       [fun() -> def_timeout_op(I) end || I <- lists:seq(1, 100) ] }
+       [fun() -> def_timeout_op(I) end || I <- lists:seq(1, 10) ] }
      ]}
      }.
 
@@ -65,7 +66,6 @@ race_op(_, Timeout) ->
 catch_results(Renders, Gets) ->
     R = get_key(<<"renders">>),
     G = get_key(<<"gets">>),
-    flushall(),
     ?assertEqual(R, Renders),
     ?assertEqual(G, Gets).
 
@@ -75,11 +75,6 @@ make_make(Data) ->
         incr(<<"renders">>),
         {{data, Data}, {ttl, 1200}}
     end.
-
-flushall() ->
-    {ok, Client} = erldis:connect(),
-    ?assertEqual(ok, erldis:flushall(Client)),
-    erldis:quit(Client).
 
 incr(Key) ->
     {ok, Client} = erldis:connect(),
