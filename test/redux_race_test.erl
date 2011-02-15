@@ -1,10 +1,11 @@
--module(redux_erldis_test).
+-module(redux_race_test).
 
+-ifdef(TEST).
 -compile(export_all).
 -include_lib("eunit/include/eunit.hrl").
 
 
-key_te_() -> fun() ->
+key_test_() -> fun() ->
     ?assertEqual(<<"key:lock">>, reducks:get_lock_key(<<"key">>))
     end.
 
@@ -16,10 +17,10 @@ normal_timeout_test_() ->
              Gets = get_key(<<"gets">>),
              flushall(),
              ?assertEqual(<<"1">>, Renders),
-             ?assertEqual(<<"300">>, Gets)
+             ?assertEqual(<<"400">>, Gets)
      end,
      {inorder, [
-      make_tests(200, 120000, 1200),
+      make_tests(300, 120000, 1200),
       fun() -> timer:sleep(100) end,
       make_tests(100, 120000, 1200)
      ]}
@@ -50,7 +51,8 @@ race_op(_, Timeout, TTL) ->
                    {{data, Data}, {ttl, TTL}}
                    end,
     {ok, Client} = erldis:connect(),
-    ?assertEqual({ok, Data}, reducks:snap(Client, Key, {Make, Timeout})),
+    Snapped = reducks:snap(Client, Key, {Make, Timeout}),
+    ?assertEqual({ok, Data}, Snapped),
     incr(<<"gets">>),
     erldis:quit(Client).
 
@@ -75,4 +77,4 @@ get_key(Key) ->
     erldis:quit(Client),
     Res.
     
-    
+-endif.

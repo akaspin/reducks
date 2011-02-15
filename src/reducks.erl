@@ -44,13 +44,13 @@ snap(Client, Key, {Make, Timeout}) ->
                                     snap(Client, Key, {Make, Timeout})
                             end;
                         false -> 
-                            %% We get lock!
                             GSTS = erldis:getset(Client, KeyLock, 
-                                          n_to_b(TS+Timeout + 1000)),
+                                          n_to_b(TS+Timeout+1000 )),
                             case b_to_n(GSTS) > TS of
                                 true -> 
                                     snap(Client, Key, {Make, Timeout});
                                 false -> 
+                                    %% We get lock!
                                     set_data(Client, Key, Make, 
                                              Timeout, KeyLock)
                             end
@@ -71,6 +71,12 @@ snap(Client, Key, {Make, Timeout}) ->
             {ok, Data}
     end.
 
+
+
+%% 
+%% Private 
+%% 
+
 set_data(Client, Key, Make, Timeout, KeyLock) ->
     case erldis:hgetall(Client, Key) of
         [] -> 
@@ -89,9 +95,6 @@ set_data(Client, Key, Make, Timeout, KeyLock) ->
             {ok, Data}
     end.
 
-%% 
-%% Private 
-%% 
 
 n_to_b(N) ->
     list_to_binary(integer_to_list(N)).
