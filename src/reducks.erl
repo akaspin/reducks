@@ -1,7 +1,7 @@
 %%% @version 0.1
 
 -module(reducks).
--export([snap/3, snap/4, purge/2]).
+-export([snap/3, snap/4, mark/3, purge/2, marked/2]).
 
 snap(Client, Key, {Field, Value}, {Make}) ->
     snap(Client, Key, {Field, Value}, {Make, 120000});
@@ -20,7 +20,7 @@ snap(Client, Key, {Make, Timeout}) ->
     case catch erldis:hgetall(Client, Key) of
         [] -> 
             %% No data here - try lock
-            KeyLock = get_lock_key(Key),
+            KeyLock = <<Key/binary, ":lock">>,
             TS = get_timestamp(0),
             case catch erldis:setnx(Client, KeyLock, n_to_b(TS+Timeout)) of
                 true ->
@@ -56,7 +56,7 @@ snap(Client, Key, {Make, Timeout}) ->
                             end
                     end;
                 {'EXIT', _} ->
-                    %% Rare bug workaround
+                    %% Rare "unsubscribe" bug workaround
                     erldis:unsubscribe(Client),
                     snap(Client, Key, {Make, Timeout})
             end;
@@ -69,16 +69,11 @@ snap(Client, Key, {Make, Timeout}) ->
             {ok, Data}
     end.
 
-%% @doc Purge keys
-purge(Client, Keys) ->
-    erldis:delkeys(Client, Keys).
-
-%% 
-%% Private 
-%% 
-
+%% @private 
 set_data(Client, Key, Make, Timeout, KeyLock) ->
     {{data, Data}, {ttl, TTL}} = Make(),
+    
+    erldis:set_pipelining(Client, true),
     erldis:hmset(Client, Key, Data),
     if TTL =/= infinity ->
            %% Set expiration if needed
@@ -86,25 +81,48 @@ set_data(Client, Key, Make, Timeout, KeyLock) ->
     end,
     erldis:publish(Client, KeyLock, <<"ok">>),
     erldis:del(Client, KeyLock),
+    erldis:get_all_results(Client),
+    erldis:set_pipelining(Client, false),
     snap(Client, Key, {Make, Timeout}).
 
 %% Convert integer to binary
+%% @private 
 n_to_b(N) ->
     list_to_binary(integer_to_list(N)).
 
+%% @private 
 b_to_n(nil) ->
     0;
+%% @private 
 b_to_n(B) ->
     list_to_integer(binary_to_list(B)).
 
+%% @private 
 get_timestamp(Diff) ->
     {Mega, Secs, Msecs} = now(),
     ((Mega*1000000 + Secs)*1000000 + Msecs) div 1000 + Diff.
 
-%% @spec get_loget_lock_key(Key::string()) -> string()
-%% @doc Get lock key
-get_lock_key(Key) ->
-    <<Key/binary, ":lock">>.
+
+%% @doc Mark keys with tags.
+mark(Client, Keys, Tags)->
+    erldis:set_pipelining(Client, true),
+    [ erldis:sadd(Client, <<"tag:", Tag/binary>>, Key) || 
+        Key <- Keys, Tag <- Tags ],
+    erldis:get_all_results(Client),
+    erldis:set_pipelining(Client, false).
+
+%% @doc Get keys by tags.
+marked(Client, Tags) ->
+    erldis:sunion(Client, make_tags(Tags)).
+
+%% @doc Purge keys
+purge(Client, Tags) ->
+    Keys = marked(Client, Tags),
+    erldis:delkeys(Client, lists:flatten([make_tags(Tags), Keys])).
+
+%% @private
+make_tags(Tags)->
+    [ <<"tag:", Tag/binary>> || Tag <-Tags ].
 
 %%
 %% Tests

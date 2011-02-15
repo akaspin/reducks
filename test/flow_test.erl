@@ -18,7 +18,7 @@ persistence_test_() ->
              ?assertNot({ok, [Data1]} == reducks:snap(Client, Key, {Make1})),
              ?assertEqual({ok, [Data]}, reducks:snap(Client, Key, {Make1})),
              
-             reducks:purge(Client, [Key]),
+             erldis:delkeys(Client, [Key]),
              ?assertEqual({ok, [Data1]}, reducks:snap(Client, Key, {Make1})),
              erldis:quit(Client)
      end
@@ -35,7 +35,7 @@ equal_test_()->
              ?assertEqual({ok, [Data]}, 
                           reducks:snap(Client, Key, Data, {Make})),
              ?assertEqual({ok, [Data]}, 
-                          reducks:snap(Client, Key, Data1, {Make})),
+                          reducks:snap(Client, Key, Data1, {Make1})),
              ?assertEqual({ok, equal}, 
                           reducks:snap(Client, Key, Data, {Make})),
              erldis:quit(Client)
