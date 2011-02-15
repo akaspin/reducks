@@ -56,12 +56,14 @@ snap(Client, Key, {Make, Timeout}) ->
                             end
                     end;
                 {'EXIT', _} ->
-                    %% Rare "unsubscribe" bug workaround
+                    %% Rare "unsubscribe" bug workaround.
+                    %% It appears in one out of ten of thousands of 
+                    %% "UNSUBSCRIBE" commands.
                     erldis:unsubscribe(Client),
                     snap(Client, Key, {Make, Timeout})
             end;
         {'EXIT', _} ->
-            %% Rare bug workaround
+            %% See above
             erldis:unsubscribe(Client),
             snap(Client, Key, {Make, Timeout});
         Data -> 

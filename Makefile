@@ -33,17 +33,17 @@ doc: rebar
 
 test: compile 
 	@-rm -rf .eunit
-	@-rm TEST*
+	@-rm -f TEST*
 	@mkdir -p .eunit
 	@$(REBAR) skip_deps=true eunit
 
 clean: rebar
 	@exec $(REBAR) clean
-	@-rm erl_crash.dump
-	@-rm TEST*
+	@-rm -f erl_crash.dump
+	@-rm -f TEST*
 	
 distclean: rebar clean
-	@exec $(REBAR) delete-deps && -rm -f rebar
+	@-exec $(REBAR) delete-deps ; -rm -f rebar
 	@-rm -rf $(BLD)
 	
 run: rebar compile
