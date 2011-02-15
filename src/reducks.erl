@@ -1,16 +1,10 @@
 %%% @version 0.1
 
-%%% @doc Dog-pile free operations for erldis. 
-%%%
-%%% I wrote this module for mochiweb-based web applications. Main problem 
-%%% with concurrent caching is cache stampering aka "dog-pile" effect. 
-%%%
-%%% `reducks' is designed to deal with hash keys. It's well suitable 
-%%% for caching web pages or json.
-
-
 -module(reducks).
 -export([snap/3]).
+
+snap(Client, Key, {Field, Value}, {Make, Timeout}) ->
+    ok.
 
 snap(Client, Key, {Make}) ->
     snap(Client, Key, {Make, 120000});
@@ -27,7 +21,6 @@ snap(Client, Key, {Make, Timeout}) ->
                     set_data(Client, Key, Make, Timeout, KeyLock);
                 false -> 
                     % Lock is dirty. Let's do hard work.
-                    % subscribe to lock
                     LockTS = b_to_n(erldis:get(Client, KeyLock)),
                     
                     %% Check expiration
@@ -54,7 +47,6 @@ snap(Client, Key, {Make, Timeout}) ->
                                     set_data(Client, Key, Make, 
                                              Timeout, KeyLock)
                             end
-
                     end;
                 {'EXIT', _} ->
                     %% Rare bug workaround
@@ -65,7 +57,6 @@ snap(Client, Key, {Make, Timeout}) ->
             %% Rare bug workaround
             erldis:unsubscribe(Client),
             snap(Client, Key, {Make, Timeout});
-        
         Data -> 
             %% all good - return data
             {ok, Data}
@@ -75,26 +66,19 @@ snap(Client, Key, {Make, Timeout}) ->
 %% Private 
 %% 
 
+
 set_data(Client, Key, Make, Timeout, KeyLock) ->
-    case erldis:hgetall(Client, Key) of
-        [] -> 
-            {{data, Data}, {ttl, TTL}} = Make(),
-            erldis:hmset(Client, Key, Data),
-            if TTL =/= infinity ->
-                   %% Set expiration if needed
-                   erldis:expire(Client, Key, TTL)
-            end,
-            erldis:publish(Client, KeyLock, <<"ok">>),
-            erldis:del(Client, KeyLock),
-            
-            snap(Client, Key, {Make, Timeout});
-        Data -> 
-            %% all good - return data
-            erldis:del(Client, KeyLock),
-            {ok, Data}
-    end.
+    {{data, Data}, {ttl, TTL}} = Make(),
+    erldis:hmset(Client, Key, Data),
+    if TTL =/= infinity ->
+           %% Set expiration if needed
+           erldis:expire(Client, Key, TTL)
+    end,
+    erldis:publish(Client, KeyLock, <<"ok">>),
+    erldis:del(Client, KeyLock),
+    snap(Client, Key, {Make, Timeout}).
 
-
+%% Convert integer to binary
 n_to_b(N) ->
     list_to_binary(integer_to_list(N)).
 
