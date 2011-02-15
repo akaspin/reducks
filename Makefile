@@ -47,5 +47,9 @@ distclean: rebar clean
 	@-rm -rf $(BLD)
 	
 run: rebar compile
-	@$(ERL) -pa $(DEPS) -boot start_sasl \
+	@$(ERL) -pa $(DEPS) \
 		-sname $(NAME) +K true +A 200
+
+run1: rebar compile
+	@$(ERL) -pa $(DEPS) \
+		-sname reducks1 +K true +A 200
