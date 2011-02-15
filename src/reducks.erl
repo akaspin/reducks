@@ -71,8 +71,6 @@ snap(Client, Key, {Make, Timeout}) ->
             {ok, Data}
     end.
 
-
-
 %% 
 %% Private 
 %% 
@@ -92,6 +90,7 @@ set_data(Client, Key, Make, Timeout, KeyLock) ->
             snap(Client, Key, {Make, Timeout});
         Data -> 
             %% all good - return data
+            erldis:del(Client, KeyLock),
             {ok, Data}
     end.
 
