@@ -124,7 +124,7 @@ purge(Client, Tags) ->
 
 %% @private
 make_tags(Tags)->
-    [ <<"tag:", Tag/binary>> || Tag <-Tags ].
+    [ <<Tag/binary, ":tag">> || Tag <-Tags ].
 
 %%
 %% Tests
