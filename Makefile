@@ -1,3 +1,4 @@
+RM=`which rm`
 GIT=`which git`
 ERL=`which erl`
 ERLC=`which erlc`
@@ -16,7 +17,7 @@ all: rebar deps compile
 rebar:
 	@-rm -rf $(BLD)
 	@mkdir -p $(BLD)
-	@cd $(BLD) && $(GIT) clone git://github.com/basho/rebar.git 
+	@cd $(BLD) && $(GIT) clone -q git://github.com/basho/rebar.git 
 	@cd $(BLD)/rebar && exec make
 	@-mv $(BLD)/rebar/rebar .
 	@-rm -rf $(BLD)
@@ -38,12 +39,15 @@ test: compile
 	@$(REBAR) skip_deps=true eunit
 
 clean: rebar
-	@exec $(REBAR) clean
+	exec $(REBAR) clean
 	@-rm -f erl_crash.dump
 	@-rm -f TEST*
 	
+# !!! Strange behaviour! Do not use in conjunction with other goals.
 distclean: rebar clean
-	@-exec $(REBAR) delete-deps ; -rm -f rebar
+	@-exec $(REBAR) delete-deps 
+	@-rm -f rebar
+	@-rm -rf deps
 	@-rm -rf $(BLD)
 	
 run: rebar compile

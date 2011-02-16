@@ -4,7 +4,7 @@
 -export([snap/3, snap/4, mark/3, purge/2, marked/2]).
 
 snap(Client, Key, {Field, Value}, {Make}) ->
-    snap(Client, Key, {Field, Value}, {Make, 120000});
+    snap(Client, Key, {Field, Value}, {Make, 300000});
 snap(Client, Key, {Field, Value}, {Make, Timeout}) ->
     case erldis:hget(Client, Key, Field) of
         Value ->
