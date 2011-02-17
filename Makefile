@@ -12,48 +12,42 @@ DEPS=ebin deps/*/ebin
 
 .PHONY: deps doc test
 
-all: rebar deps compile
+all: deps compile
 
-rebar:
+deps:
+	@exec $(REBAR) get-deps
+	@exec $(REBAR) update-deps
+
+compile:
+	@exec $(REBAR) compile
+	
+doc:
+	@exec $(REBAR) doc skip_deps=true
+
+test: compile
+	@-rm -rf .eunit
+	@-rm -f TEST*
+	@mkdir -p .eunit
+	@$(REBAR) skip_deps=true eunit
+
+clean:
+	@-exec $(REBAR) clean
+	@-rm -f erl_crash.dump
+	@-rm -f TEST*
+	
+# Rebuild rebar and clean
+distclean: clean
 	@-rm -rf $(BLD)
 	@mkdir -p $(BLD)
 	@cd $(BLD) && $(GIT) clone -q git://github.com/basho/rebar.git 
 	@cd $(BLD)/rebar && exec make
 	@-mv $(BLD)/rebar/rebar .
 	@-rm -rf $(BLD)
-
-deps: rebar
-	@exec $(REBAR) get-deps
-	@exec $(REBAR) update-deps
-
-compile: rebar
-	@exec $(REBAR) compile
 	
-doc: rebar
-	@exec $(REBAR) doc skip_deps=true
-
-test: compile 
-	@-rm -rf .eunit
-	@-rm -f TEST*
-	@mkdir -p .eunit
-	@$(REBAR) skip_deps=true eunit
-
-clean: rebar
-	exec $(REBAR) clean
-	@-rm -f erl_crash.dump
-	@-rm -f TEST*
-	
-# !!! Strange behaviour! Do not use in conjunction with other goals.
-distclean: rebar clean
 	@-exec $(REBAR) delete-deps 
-	@-rm -f rebar
 	@-rm -rf deps
-	@-rm -rf $(BLD)
 	
-run: rebar compile
+run: compile
 	@$(ERL) -pa $(DEPS) \
 		-sname $(NAME) +K true +A 200
 
-run1: rebar compile
-	@$(ERL) -pa $(DEPS) \
-		-sname reducks1 +K true +A 200

@@ -108,8 +108,7 @@ get_timestamp(Diff) ->
 %% @doc Mark keys with tags.
 mark(Client, Keys, Tags)->
     erldis:set_pipelining(Client, true),
-    [ erldis:sadd(Client, <<"tag:", Tag/binary>>, Key) || 
-        Key <- Keys, Tag <- Tags ],
+    [ erldis:sadd(Client, Tag, Key) || Key <- Keys, Tag <- make_tags(Tags) ],
     erldis:get_all_results(Client),
     erldis:set_pipelining(Client, false).
 
