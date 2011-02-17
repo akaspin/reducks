@@ -1,4 +1,3 @@
-RM=`which rm`
 GIT=`which git`
 ERL=`which erl`
 ERLC=`which erlc`
@@ -14,6 +13,15 @@ DEPS=ebin deps/*/ebin
 
 all: deps compile
 
+rebar-update:
+	# Get rebar
+	@-rm -rf $(BLD)
+	@mkdir -p $(BLD)
+	@cd $(BLD) && $(GIT) clone -q git://github.com/basho/rebar.git 
+	@cd $(BLD)/rebar && exec make
+	@-mv $(BLD)/rebar/rebar .
+	@-rm -rf $(BLD)
+	
 deps:
 	@exec $(REBAR) get-deps
 	@exec $(REBAR) update-deps
@@ -36,14 +44,7 @@ clean:
 	@-rm -f TEST*
 	
 # Rebuild rebar and clean
-distclean: clean
-	@-rm -rf $(BLD)
-	@mkdir -p $(BLD)
-	@cd $(BLD) && $(GIT) clone -q git://github.com/basho/rebar.git 
-	@cd $(BLD)/rebar && exec make
-	@-mv $(BLD)/rebar/rebar .
-	@-rm -rf $(BLD)
-	
+distclean: rebar-update clean
 	@-exec $(REBAR) delete-deps 
 	@-rm -rf deps
 	
