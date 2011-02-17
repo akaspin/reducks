@@ -13,8 +13,7 @@ DEPS=ebin deps/*/ebin
 
 all: deps compile
 
-rebar-update:
-	# Get rebar
+rebar:
 	@-rm -rf $(BLD)
 	@mkdir -p $(BLD)
 	@cd $(BLD) && $(GIT) clone -q git://github.com/basho/rebar.git 
@@ -22,14 +21,14 @@ rebar-update:
 	@-mv $(BLD)/rebar/rebar .
 	@-rm -rf $(BLD)
 	
-deps:
+deps: rebar
 	@exec $(REBAR) get-deps
 	@exec $(REBAR) update-deps
 
-compile:
+compile: rebar
 	@exec $(REBAR) compile
 	
-doc:
+doc: rebar
 	@exec $(REBAR) doc skip_deps=true
 
 test: compile
@@ -38,13 +37,12 @@ test: compile
 	@mkdir -p .eunit
 	@$(REBAR) skip_deps=true eunit
 
-clean:
+clean: rebar
 	@-exec $(REBAR) clean
 	@-rm -f erl_crash.dump
 	@-rm -f TEST*
 	
-# Rebuild rebar and clean
-distclean: rebar-update clean
+distclean: clean
 	@-exec $(REBAR) delete-deps 
 	@-rm -rf deps
 	
