@@ -31,7 +31,7 @@ snap(Client, Key, {Make, Timeout}) ->
                     LockTS = b_to_n(erldis:get(Client, KeyLock)),
                     
                     %% Check expiration
-                    case LockTS  > TS of
+                    case LockTS+Timeout  > TS of
                         true ->
                             Subs = erldis:subscribe(Client, KeyLock, self()),
                             receive

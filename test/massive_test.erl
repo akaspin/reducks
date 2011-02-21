@@ -8,12 +8,12 @@ normal_timeout_test_() ->
     {"Timeout > make",
      setup, fun test_util:flushall/0,
      fun(_) -> 
-             catch_results(<<"1">>, <<"60">>),
+             catch_results(<<"1">>, <<"310">>),
              test_util:flushall()
      end,
      {inorder, [
       {inparallel, 
-       [fun() -> race_op(I, 120000) end || I <- lists:seq(1, 50) ] },
+       [fun() -> race_op(I, 120000) end || I <- lists:seq(1, 300) ] },
       fun() -> timer:sleep(100) end,
       {inparallel, 
        [fun() -> race_op(I, 120000) end || I <- lists:seq(1, 10) ] }
@@ -23,23 +23,23 @@ small_timeout_test_() ->
     {"Timeout = make",
      setup, fun test_util:flushall/0,
      fun(_) -> 
-             catch_results(<<"2">>, <<"30">>),
+             catch_results(<<"2">>, <<"300">>),
              test_util:flushall() 
      end,
       {inparallel, 
-       [fun() -> race_op(I, 10) end || I <- lists:seq(1, 30) ] }
+       [fun() -> race_op(I, 10) end || I <- lists:seq(1, 300) ] }
      }.
 
 def_timeout_test_() -> 
     {"Default timeout",
      setup, fun test_util:flushall/0,
      fun(_) -> 
-             catch_results(<<"1">>, <<"10">>),
+             catch_results(<<"1">>, <<"100">>),
              test_util:flushall()
      end,
      {inorder, [
       {inparallel, 
-       [fun() -> def_timeout_op(I) end || I <- lists:seq(1, 10) ] }
+       [fun() -> def_timeout_op(I) end || I <- lists:seq(1, 100) ] }
      ]}
      }.
 
