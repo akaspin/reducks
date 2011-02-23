@@ -61,7 +61,7 @@ Basic usage is very simple. *reducks* working with hashsets. Feed into it the
     {ok, Data1} = reducks:snap(Client, <<"somekey">>, {Make}),
     erldis:quit(Client),
     io:format("> One ~p~n", [Data]).
-    io:format("> Two ~p~n", [Data]).
+    io:format("> Two ~p~n", [Data1]).
     ...
     > Long operation done
     > One [{<<"field">>, <<"value">>}, {<<"other">>, <<"value">>}]
