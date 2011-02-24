@@ -77,9 +77,9 @@ set_data(Client, Key, Make, Timeout, KeyLock) ->
     
     erldis:set_pipelining(Client, true),
     erldis:hmset(Client, Key, Data),
-    if TTL =/= infinity ->
+    case TTL =/= infinity of
            %% Set expiration if needed
-           erldis:expire(Client, Key, TTL)
+           true -> erldis:expire(Client, Key, TTL)
     end,
     erldis:publish(Client, KeyLock, <<"ok">>),
     erldis:del(Client, KeyLock),
