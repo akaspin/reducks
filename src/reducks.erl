@@ -20,7 +20,7 @@ snap(Client, Key, {Make, Timeout}) ->
     case catch erldis:hgetall(Client, Key) of
         [] -> 
             %% No data here - try lock
-            KeyLock = Key ++ ":lock",
+            KeyLock = <<Key/binary, ":lock">>,
             TS = get_timestamp(0),
             case catch erldis:setnx(Client, KeyLock, n_to_b(TS+Timeout)) of
                 true ->
