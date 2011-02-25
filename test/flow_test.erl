@@ -44,7 +44,7 @@ equal_test_()->
 
 
 get_assets() ->
-    Key = <<"persistence:key">>,
+    Key = <<"persistence/key">>,
     Data = {<<"field">>, <<"value1">>},
     Data1 = {<<"field">>, <<"value2">>},
     Make = make_maker([Data], 120000),
