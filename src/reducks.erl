@@ -38,14 +38,14 @@ snap(Client, Key, {Make, Timeout}) ->
                                 {message, KeyLock, _} ->
                                     erldis:unsubscribe(Client),
                                     snap(Client, Key, {Make, Timeout})
-                            after LockTS - TS + Subs * Timeout ->
+                                after LockTS - TS + Subs * Timeout ->
                                     
                                     erldis:unsubscribe(Client),
                                     snap(Client, Key, {Make, Timeout})
                             end;
                         false -> 
                             GSTS = erldis:getset(Client, KeyLock, 
-                                          n_to_b(TS+Timeout+1000 )),
+                                                 n_to_b(TS+Timeout+1000 )),
                             case b_to_n(GSTS) > TS of
                                 true -> 
                                     snap(Client, Key, {Make, Timeout});
@@ -73,20 +73,23 @@ snap(Client, Key, {Make, Timeout}) ->
 
 %% @private 
 set_data(Client, Key, Make, Timeout, KeyLock) ->
-    {{data, Data}, {ttl, TTL}} = Make(),
-    
-    erldis:set_pipelining(Client, true),
-    erldis:hmset(Client, Key, Data),
-    case TTL =/= infinity of
-        %% Set expiration if needed
-        true -> erldis:expire(Client, Key, TTL);
-        _->ok
-    end,
-    erldis:publish(Client, KeyLock, <<"ok">>),
-    erldis:del(Client, KeyLock),
-    erldis:get_all_results(Client),
-    erldis:set_pipelining(Client, false),
-    snap(Client, Key, {Make, Timeout}).
+    case catch Make() of
+        {{data, Data}, {ttl, TTL}} -> 
+            erldis:set_pipelining(Client, true),
+            erldis:hmset(Client, Key, Data),
+            case TTL =/= infinity of
+                %% Set expiration if needed
+                true -> erldis:expire(Client, Key, TTL);
+                _->ok
+            end,
+            erldis:publish(Client, KeyLock, <<"ok">>),
+            erldis:del(Client, KeyLock),
+            erldis:get_all_results(Client),
+            erldis:set_pipelining(Client, false),
+            snap(Client, Key, {Make, Timeout});
+        _ -> 
+            erldis:del(Client, KeyLock)
+    end.
 
 %% Convert integer to binary
 %% @private 
