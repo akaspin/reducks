@@ -88,7 +88,8 @@ set_data(Client, Key, Make, Timeout, KeyLock) ->
             erldis:set_pipelining(Client, false),
             snap(Client, Key, {Make, Timeout});
         _ -> 
-            erldis:del(Client, KeyLock)
+            erldis:del(Client, KeyLock),
+            erldis:publish(Client, KeyLock, <<"ok">>)
     end.
 
 %% Convert integer to binary
