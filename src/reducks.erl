@@ -1,18 +1,39 @@
 %%% @version 0.1
 
 -module(reducks).
--export([snap/3, snap/4, mark/3, purge/2, marked/2]).
+-export([snap/3, snap/4, 
+         mark/3, purge/2, marked/2]).
 
-snap(Client, Key, {Field, Value}, {Make}) ->
-    snap(Client, Key, {Field, Value}, {Make, 300000});
-snap(Client, Key, {Field, Value}, {Make, Timeout}) ->
-    case erldis:hget(Client, Key, Field) of
-        Value ->
-            {ok, equal};
-        _ ->
-            snap(Client, Key, {Make, Timeout})
-    end.
 
+-type key()::binary().
+-type field()::binary().
+-type value()::binary().
+-type time_out()::integer().
+-type hash():: [{field(), value()}].
+
+-type client()::pid().
+
+-type make_fun()::fun(()-> 
+        {{data, hash()}, {ttl, integer()|infinity}} | any()).
+-type make_spec():: {make_fun()} | {make_fun(), time_out()}.
+
+%% Types 
+%% @type key() = binary(). Key. 
+%% @type field() = binary(). Field name in hashset.
+%% @type value() = binary(). Field value in hashset.
+%% @type time_out() = integer(). Timeout in miliseconds.
+%% @type hash() = [{field(), value()}]. Record in hashset.
+%% @type client() = pid(). Erldis client.
+%% @type make_fun() = ()->{{data, hash()}, {ttl, integer()|infinity}} | any().
+%%          Make function. 
+%% @type make_spec() = {make_fun()} | {make_fun(), time_out()}. Make 
+%%          specification. Make function with timeout.
+
+%% @doc Try to retrieve data.
+%% @spec snap(Client::client(), Key::key(), Make::make_spec())-> 
+%%           {ok, hash()} | {error, any()}
+-spec snap(Client::client(), Key::key(), Make::make_spec())-> 
+          {ok, hash()} | {error, any()}.
 snap(Client, Key, {Make}) ->
     snap(Client, Key, {Make, 120000});
 snap(Client, Key, {Make, Timeout}) ->
@@ -70,6 +91,23 @@ snap(Client, Key, {Make, Timeout}) ->
             %% all good - return data
             {ok, Data}
     end.
+
+%% @doc Try to retrieve data with pre-test.
+%% @spec snap(Client::client(), Key::key(), CheckSpec::{field(), value()}, 
+%%          Make::make_spec())-> {ok, equal} | {ok, hash()} | {error, any()}
+-spec snap(Client::client(), Key::key(), CheckSpec::{field(), value()}, 
+           Make::make_spec())->  {ok, equal} | {ok, hash()} | {error, any()}.
+snap(Client, Key, {Field, Value}, {Make}) ->
+    snap(Client, Key, {Field, Value}, {Make, 300000});
+
+snap(Client, Key, {Field, Value}, {Make, Timeout}) ->
+    case erldis:hget(Client, Key, Field) of
+        Value ->
+            {ok, equal};
+        _ ->
+            snap(Client, Key, {Make, Timeout})
+    end.
+
 
 %% @private 
 set_data(Client, Key, Make, Timeout, KeyLock) ->

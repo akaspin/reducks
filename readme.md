@@ -75,7 +75,9 @@ replace an existing key until it is removed or expired (via `erldis:del` or
     
     {{data, [{<<"fieldname">>, <<fieldvalue>>}...]}, % As in erldis
      {ttl, 60}} % Time-to-live of key in seconds or infinity if 
-                % you wan't expire key 
+                % you wan't expire key
+                
+... or something else in case of error.
 
 ## Timeouts
 
