@@ -55,7 +55,7 @@ Basic usage is very simple. *reducks* working with hashsets. Feed into it the
             Data = [{<<"field">>, <<"value">>}, 
                     {<<"other">>, <<"value">>}],
             io:format("> Long operation done~n").
-            [{data, Data}, {ttl, 60}].
+            Data ++ [{ttl, 60}].
         end,
     {ok, Data} = reducks:snap(Client, <<"somekey">>, {Make}),
     {ok, Data1} = reducks:snap(Client, <<"somekey">>, {Make}),
@@ -73,7 +73,7 @@ replace an existing key until it is removed or expired (via `erldis:del` or
 
 `Make` must return following:
     
-    [{data, [{<<"fieldname">>, <<fieldvalue>>}...]}, % As in erldis
+    [{<<"fieldname">>, <<fieldvalue>>} | % As in erldis
      {ttl, 60}] % Time-to-live of key in seconds or infinity if 
                 % you wan't expire key
                 

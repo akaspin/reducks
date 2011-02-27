@@ -112,23 +112,26 @@ snap(Client, Key, {Field, Value}, {Make, Timeout}) ->
 %% @private 
 set_data(Client, Key, Make, Timeout, KeyLock) ->
     case catch Make() of
-        [{data, Data}, {ttl, TTL}] -> 
+        {Err, Reason} -> 
+            erldis:del(Client, KeyLock),
+            erldis:publish(Client, KeyLock, <<"ok">>),
+            {Err, Reason};
+        Data ->
+            BinFilter = fun({K, _}) -> is_binary(K) end,
+            Fields = lists:filter(BinFilter, Data),
             erldis:set_pipelining(Client, true),
-            erldis:hmset(Client, Key, Data),
-            case TTL =/= infinity of
+            erldis:hmset(Client, Key, Fields),
+            
+            case lists:keyfind(ttl, 1, Data) of
                 %% Set expiration if needed
-                true -> erldis:expire(Client, Key, TTL);
-                _->ok
+                {ttl, TTL} -> erldis:expire(Client, Key, TTL);
+                false-> ok
             end,
             erldis:publish(Client, KeyLock, <<"ok">>),
             erldis:del(Client, KeyLock),
             erldis:get_all_results(Client),
             erldis:set_pipelining(Client, false),
-            snap(Client, Key, {Make, Timeout});
-        {Err, Reason} -> 
-            erldis:del(Client, KeyLock),
-            erldis:publish(Client, KeyLock, <<"ok">>),
-            {Err, Reason}
+            snap(Client, Key, {Make, Timeout})
     end.
 
 %% Convert integer to binary
@@ -147,7 +150,6 @@ b_to_n(B) ->
 get_timestamp(Diff) ->
     {Mega, Secs, Msecs} = now(),
     ((Mega*1000000 + Secs)*1000000 + Msecs) div 1000 + Diff.
-
 
 %% @doc Mark keys with tags.
 mark(Client, Keys, Tags)->
