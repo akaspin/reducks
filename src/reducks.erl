@@ -115,7 +115,7 @@ set_data(Client, Key, Make, Timeout, KeyLock) ->
         {Err, Reason} -> 
             erldis:del(Client, KeyLock),
             erldis:publish(Client, KeyLock, <<"ok">>),
-            {Err, Reason};
+            error({Err, Reason});
         Data ->
             BinFilter = fun({K, _}) -> is_binary(K) end,
             Fields = lists:filter(BinFilter, Data),
