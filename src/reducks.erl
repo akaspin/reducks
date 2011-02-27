@@ -112,7 +112,7 @@ snap(Client, Key, {Field, Value}, {Make, Timeout}) ->
 %% @private 
 set_data(Client, Key, Make, Timeout, KeyLock) ->
     case catch Make() of
-        {{data, Data}, {ttl, TTL}} -> 
+        [{data, Data}, {ttl, TTL}] -> 
             erldis:set_pipelining(Client, true),
             erldis:hmset(Client, Key, Data),
             case TTL =/= infinity of
@@ -125,10 +125,10 @@ set_data(Client, Key, Make, Timeout, KeyLock) ->
             erldis:get_all_results(Client),
             erldis:set_pipelining(Client, false),
             snap(Client, Key, {Make, Timeout});
-        E -> 
+        {Err, Reason} -> 
             erldis:del(Client, KeyLock),
             erldis:publish(Client, KeyLock, <<"ok">>),
-            {error, E}
+            {Err, Reason}
     end.
 
 %% Convert integer to binary

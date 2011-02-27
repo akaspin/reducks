@@ -73,7 +73,7 @@ make_make(Data) ->
     fun() ->
         timer:sleep(100),
         incr(<<"renders">>),
-        {{data, Data}, {ttl, 1200}}
+        [{data, Data}, {ttl, 1200}]
     end.
 
 incr(Key) ->

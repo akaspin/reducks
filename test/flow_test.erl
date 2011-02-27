@@ -52,7 +52,7 @@ get_assets() ->
     {Key, {Data, Data1}, {Make, Make1}}.
 
 make_maker(Data, TTL) ->
-    fun() -> {{data, Data}, {ttl, TTL}} end.            
+    fun() -> [{data, Data}, {ttl, TTL}] end.            
 
 -endif.
 
