@@ -68,7 +68,8 @@ Basic usage is very simple. *reducks* working with hashsets. Feed into it the
     
 As we see, `Make` fun was called only once. `reducks:snap/3` will never 
 replace an existing key until it is removed or expired (via `erldis:del` or 
-`expire`). `reducks:snap` is synchronous operation.
+`expire`). `reducks:snap` is synchronous operation. It does not spawn any 
+processes.
 
 `Make` is `fun` to be performed only if there is no data in the cache with 
 the correct key. The result of this function must following.
