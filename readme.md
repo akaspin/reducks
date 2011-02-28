@@ -17,7 +17,8 @@ And stores data to cache. Again and again. Well, you understand me.
 
 *reducks* dealt with a dog pile by forcing all processes to wait until one 
 of them does not put data into the cache. Regardless of whether these 
-processes on one or several unrelated nodes. This is the basic idea.
+processes on one or several unrelated nodes. This is the basic idea. As in 
+duck hunting: one duck - one shot.
 
 ## Build and testing
 
