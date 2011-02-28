@@ -44,36 +44,36 @@ def_timeout_test_() ->
      }.
 
 def_timeout_op(_) ->
-    Key = <<"key">>,
+    Key = <<"reducks-test:key">>,
     Data = [{<<"one">>, <<"one">>}],
     Make = make_make(Data),
     {ok, Client} = erldis:connect(),
     ?assertEqual({ok, Data}, 
                  reducks:snap(Client, Key, {Make})),
-    incr(<<"gets">>),
+    incr(<<"reducks-test:gets">>),
     erldis:quit(Client).
 
 race_op(_, Timeout) ->
-    Key = <<"key">>,
+    Key = <<"reducks-test:key">>,
     Data = [{<<"one">>, <<"one">>}],
     Make = make_make(Data),
     {ok, Client} = erldis:connect(),
     ?assertEqual({ok, Data}, 
                  reducks:snap(Client, Key, {Make, Timeout})),
-    incr(<<"gets">>),
+    incr(<<"reducks-test:gets">>),
     erldis:quit(Client).
 
 catch_results(Renders, Gets) ->
-    R = get_key(<<"renders">>),
-    G = get_key(<<"gets">>),
+    R = get_key(<<"reducks-test:renders">>),
+    G = get_key(<<"reducks-test:gets">>),
     ?assertEqual(R, Renders),
     ?assertEqual(G, Gets).
 
 make_make(Data) -> 
     fun() ->
         timer:sleep(100),
-        incr(<<"renders">>),
-        Data
+        incr(<<"reducks-test:renders">>),
+        {ok, Data}
     end.
 
 incr(Key) ->

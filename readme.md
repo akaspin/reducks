@@ -54,7 +54,7 @@ Basic usage is very simple. *reducks* working with hashsets. Feed into it the
             Data = [{<<"field">>, <<"value">>}, 
                     {<<"other">>, <<"value">>}],
             io:format("> Long operation done~n").
-            Data.
+            {ok, Data}.
         end,
     {ok, Data} = reducks:snap(Client, <<"somekey">>, {Make}),
     {ok, Data1} = reducks:snap(Client, <<"somekey">>, {Make}),
@@ -68,12 +68,12 @@ Basic usage is very simple. *reducks* working with hashsets. Feed into it the
     
 As we see, `Make` fun was called only once. `reducks:snap/3` will never 
 replace an existing key until it is removed or expired (via `erldis:del` or 
-`expire`).
+`expire`). `reducks:snap` is synchronous operation.
 
 `Make` is `fun` to be performed only if there is no data in the cache with 
-the correct key. The result of this function must be a list of tuples.
+the correct key. The result of this function must following.
     
-    [{<<"fieldname">>, <<fieldvalue>>} | ... ] % As in erldis `hmset`
+    {ok, [{<<"fieldname">>, <<fieldvalue>>} | ... ]} % As in erldis `hmset`
                 
 All tuples with binary field names will be stored in cache. The order of the 
 tuples in the list is not important.
@@ -83,7 +83,7 @@ tuples in the list is not important.
 You can set expiration to hashset by adding tuple `{ttl, <expiration time>}`. 
 Expiration time is `integer()` value in seconds (redis convention). 
 
-    [ ... | {ttl, 60} ] % One minute expiration
+    {ok, [ ... | {ttl, 60} ]} % One minute expiration
 
 ## Timeouts
 
@@ -119,6 +119,16 @@ This operation may be much less resource intensive than `snap/3`. Because
 [Redis HGET](http://redis.io/commands/hget) has complexity O(1) instead O(N) 
 with [HGETAL](http://redis.io/commands/hgetall).
 
+## Tags
+
+You can tag keys with `reducks:snap`. Batteries included. Just add tuple 
+`{tags, [binary()]}` to result of make fun.
+
+    {ok, [... | {tags, [<<"tag-one">>, <<"tag-tho">>]}]} % Two tags
+    
+You can then delete all the keys marked with these tags by `reducks:purge/2`
+
+    reducks:purge(Client, [<<"tag-one">>, <<"tag-tho">>])
 
 
 

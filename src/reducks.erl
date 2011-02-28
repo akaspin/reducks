@@ -1,57 +1,43 @@
 %%% @version 0.1
 
 -module(reducks).
--export([snap/3, snap/4, 
-         mark/3, purge/2, marked/2]).
+-export([snap/3, snap/4, purge/2]).
 
+-type client()::pid().
 
 -type key()::binary().
 -type field()::binary().
 -type value()::binary().
+-type hashfield()::[{field(), value()}].
+
+-type tag()::integer().
+
 -type time_out()::integer().
--type hash():: [{field(), value()}].
 
--type client()::pid().
-
--type make_fun()::fun(()-> 
-        {{data, hash()}, {ttl, integer()|infinity}} | any()).
+-type make_fun()::fun(()-> [hashfield() | {ttl, integer()} | {tag, [tag()]}]).
 -type make_spec():: {make_fun()} | {make_fun(), time_out()}.
 
-%% Types 
-%% @type key() = binary(). Key. 
-%% @type field() = binary(). Field name in hashset.
-%% @type value() = binary(). Field value in hashset.
-%% @type time_out() = integer(). Timeout in miliseconds.
-%% @type hash() = [{field(), value()}]. Record in hashset.
-%% @type client() = pid(). Erldis client.
-%% @type make_fun() = ()->{{data, hash()}, {ttl, integer()|infinity}} | any().
-%%          Make function. 
-%% @type make_spec() = {make_fun()} | {make_fun(), time_out()}. Make 
-%%          specification. Make function with timeout.
-
-%% @doc Try to retrieve data.
-%% @spec snap(Client::client(), Key::key(), Make::make_spec())-> 
-%%           {ok, hash()} | {error, any()}
+%% @doc Try to retrieve data from cache if present. Or put data.
 -spec snap(Client::client(), Key::key(), Make::make_spec())-> 
-          {ok, hash()} | {error, any()}.
+          {ok, [hashfield()]}.
 snap(Client, Key, {Make}) ->
     snap(Client, Key, {Make, 120000});
 snap(Client, Key, {Make, Timeout}) ->
     %% Try get data
     case catch erldis:hgetall(Client, Key) of
         [] -> 
-            %% No data here - try lock
+            % No data here - try lock
             KeyLock = <<Key/binary, ":lock">>,
             TS = get_timestamp(0),
             case catch erldis:setnx(Client, KeyLock, n_to_b(TS+Timeout)) of
                 true ->
-                    %% Ok. Lock acquired
+                    % Ok. Lock acquired
                     set_data(Client, Key, Make, Timeout, KeyLock);
                 false -> 
                     % Lock is dirty. Let's do hard work.
                     LockTS = b_to_n(erldis:get(Client, KeyLock)),
                     
-                    %% Check expiration
+                    % Check expiration
                     case LockTS  > TS of
                         true ->
                             Subs = erldis:subscribe(Client, KeyLock, self()),
@@ -71,32 +57,28 @@ snap(Client, Key, {Make, Timeout}) ->
                                 true -> 
                                     snap(Client, Key, {Make, Timeout});
                                 false -> 
-                                    %% We get lock!
+                                    % We get lock!
                                     set_data(Client, Key, Make, 
                                              Timeout, KeyLock)
                             end
                     end;
                 {'EXIT', _} ->
-                    %% Rare "unsubscribe" bug workaround.
-                    %% It appears in one out of ten of thousands of 
-                    %% "UNSUBSCRIBE" commands.
+                    % Rare "unsubscribe" bug workaround.
+                    % It appears in one out of ten of thousands of 
+                    % "UNSUBSCRIBE" commands.
                     erldis:unsubscribe(Client),
                     snap(Client, Key, {Make, Timeout})
             end;
         {'EXIT', _} ->
-            %% See above
+            % See above
             erldis:unsubscribe(Client),
             snap(Client, Key, {Make, Timeout});
         Data -> 
-            %% all good - return data
+            % all good - return data
             {ok, Data}
     end.
 
 %% @doc Try to retrieve data with pre-test.
-%% @spec snap(Client::client(), Key::key(), CheckSpec::{field(), value()}, 
-%%          Make::make_spec())-> {ok, equal} | {ok, hash()} | {error, any()}
--spec snap(Client::client(), Key::key(), CheckSpec::{field(), value()}, 
-           Make::make_spec())->  {ok, equal} | {ok, hash()} | {error, any()}.
 snap(Client, Key, {Field, Value}, {Make}) ->
     snap(Client, Key, {Field, Value}, {Make, 300000});
 
@@ -108,29 +90,46 @@ snap(Client, Key, {Field, Value}, {Make, Timeout}) ->
             snap(Client, Key, {Make, Timeout})
     end.
 
+%% @doc Purge keys by tags. 
+-spec purge(Client::client(), Tags::[tag()]) -> integer().
+purge(Client, Tags)->
+    TagKeys = [<<T/binary, ":tag">> || T <- Tags],
+    Keys = erldis:sunion(Client, [<<T/binary, ":tag">> || T <- Tags]),
+    erldis:delkeys(Client, lists:append([Keys, TagKeys])).
 
+%% Set data in cache
 %% @private 
 set_data(Client, Key, Make, Timeout, KeyLock) ->
-    try
-        erldis:set_pipelining(Client, true),
-        Data = Make(),
-        Fields = lists:filter(fun({K, _}) -> is_binary(K) end, Data),
-        
-        case lists:keyfind(ttl, 1, Data) of
-            %% Set expiration if needed
-            {ttl, TTL} -> erldis:expire(Client, Key, TTL);
-            false-> ok
-        end,
-        
-        erldis:hmset(Client, Key, Fields),
-        cleanup(Client, KeyLock),
-        snap(Client, Key, {Make, Timeout})
+    erldis:set_pipelining(Client, true),
+    try Make() of
+        {ok, Data} ->
+            Fields = lists:filter(fun({K, _}) -> is_binary(K) end, Data),
+            erldis:hmset(Client, Key, Fields),
+            
+            % Set expiration if needed
+            case lists:keyfind(ttl, 1, Data) of
+                {ttl, TTL} -> erldis:expire(Client, Key, TTL);
+                false-> ok
+            end,
+            
+            % Set tags if needed
+            case lists:keyfind(tags, 1, Data) of
+                {tags, Tags} -> 
+                    [ erldis:sadd(Client, <<T/binary,":tag">>, Key) || 
+                        T <- Tags ];
+                false-> ok
+            end,
+            
+            cleanup(Client, KeyLock),
+            snap(Client, Key, {Make, Timeout})
     catch
         Err:Reason ->
+            % Make  crashed
             cleanup(Client, KeyLock),
             error({Err, Reason})
     end.
 
+%% @doc Cleanup
 cleanup(Client, KeyLock)->
     erldis:publish(Client, KeyLock, <<"ok">>),
             erldis:del(Client, KeyLock),
@@ -153,26 +152,6 @@ b_to_n(B) ->
 get_timestamp(Diff) ->
     {Mega, Secs, Msecs} = now(),
     ((Mega*1000000 + Secs)*1000000 + Msecs) div 1000 + Diff.
-
-%% @doc Mark keys with tags.
-mark(Client, Keys, Tags)->
-    erldis:set_pipelining(Client, true),
-    [ erldis:sadd(Client, Tag, Key) || Key <- Keys, Tag <- make_tags(Tags) ],
-    erldis:get_all_results(Client),
-    erldis:set_pipelining(Client, false).
-
-%% @doc Get keys by tags.
-marked(Client, Tags) ->
-    erldis:sunion(Client, make_tags(Tags)).
-
-%% @doc Purge keys
-purge(Client, Tags) ->
-    Keys = marked(Client, Tags),
-    erldis:delkeys(Client, lists:flatten([make_tags(Tags), Keys])).
-
-%% @private
-make_tags(Tags)->
-    [ <<Tag/binary, ":tag">> || Tag <-Tags ].
 
 %%
 %% Tests

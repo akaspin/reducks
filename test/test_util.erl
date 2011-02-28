@@ -6,7 +6,8 @@
 
 flushall() ->
     {ok, Client} = erldis:connect(),
-    ?assertEqual(ok, erldis:flushall(Client)),
+    All = erldis:keys(Client, <<"reducks-test:*">>),
+    erldis:delkeys(Client, All),
     erldis:quit(Client).
 
 -endif.
