@@ -124,11 +124,11 @@ with [HGETAL](http://redis.io/commands/hgetall).
 You can tag keys with `reducks:snap`. Batteries included. Just add tuple 
 `{tags, [binary()]}` to result of make fun.
 
-    {ok, [... | {tags, [<<"tag-one">>, <<"tag-tho">>]}]} % Two tags
+    {ok, [... | {tags, [<<"tag-one">>, <<"tag-two">>]}]} % Two tags
     
 You can then delete all the keys marked with these tags by `reducks:purge/2`
 
-    reducks:purge(Client, [<<"tag-one">>, <<"tag-tho">>])
+    reducks:purge(Client, [<<"tag-one">>, <<"tag-two">>])
 
 
 
