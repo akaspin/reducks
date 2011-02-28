@@ -111,28 +111,31 @@ snap(Client, Key, {Field, Value}, {Make, Timeout}) ->
 
 %% @private 
 set_data(Client, Key, Make, Timeout, KeyLock) ->
-    case catch Make() of
-        {Err, Reason} -> 
-            erldis:del(Client, KeyLock),
-            erldis:publish(Client, KeyLock, <<"ok">>),
-            error({Err, Reason});
-        Data ->
-            BinFilter = fun({K, _}) -> is_binary(K) end,
-            Fields = lists:filter(BinFilter, Data),
-            erldis:set_pipelining(Client, true),
-            erldis:hmset(Client, Key, Fields),
-            
-            case lists:keyfind(ttl, 1, Data) of
-                %% Set expiration if needed
-                {ttl, TTL} -> erldis:expire(Client, Key, TTL);
-                false-> ok
-            end,
-            erldis:publish(Client, KeyLock, <<"ok">>),
+    try
+        erldis:set_pipelining(Client, true),
+        Data = Make(),
+        Fields = lists:filter(fun({K, _}) -> is_binary(K) end, Data),
+        
+        case lists:keyfind(ttl, 1, Data) of
+            %% Set expiration if needed
+            {ttl, TTL} -> erldis:expire(Client, Key, TTL);
+            false-> ok
+        end,
+        
+        erldis:hmset(Client, Key, Fields),
+        cleanup(Client, KeyLock),
+        snap(Client, Key, {Make, Timeout})
+    catch
+        Err:Reason ->
+            cleanup(Client, KeyLock),
+            error({Err, Reason})
+    end.
+
+cleanup(Client, KeyLock)->
+    erldis:publish(Client, KeyLock, <<"ok">>),
             erldis:del(Client, KeyLock),
             erldis:get_all_results(Client),
-            erldis:set_pipelining(Client, false),
-            snap(Client, Key, {Make, Timeout})
-    end.
+            erldis:set_pipelining(Client, false).
 
 %% Convert integer to binary
 %% @private 

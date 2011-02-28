@@ -17,9 +17,7 @@ And stores data to cache. Again and again. Well, you understand me.
 
 *reducks* dealt with a dog pile by forcing all processes to wait until one 
 of them does not put data into the cache. Regardless of whether these 
-processes on one or several unrelated nodes.  
-
-This is the basic idea.
+processes on one or several unrelated nodes. This is the basic idea.
 
 ## Build and testing
 
@@ -42,7 +40,8 @@ to `deps` in `rebar.config`.
             {git, "git://github.com/akaspin/reducks.git", "master"} }
     ]}.
     
-*reducks* uses [erldis](https://github.com/cstar/erldis) to work with redis.
+*reducks* uses [erldis](https://github.com/cstar/erldis) to work with redis. 
+*reducks*
 
 ## Basic usage
 
@@ -55,7 +54,7 @@ Basic usage is very simple. *reducks* working with hashsets. Feed into it the
             Data = [{<<"field">>, <<"value">>}, 
                     {<<"other">>, <<"value">>}],
             io:format("> Long operation done~n").
-            Data ++ [{ttl, 60}].
+            Data.
         end,
     {ok, Data} = reducks:snap(Client, <<"somekey">>, {Make}),
     {ok, Data1} = reducks:snap(Client, <<"somekey">>, {Make}),
@@ -71,13 +70,20 @@ As we see, `Make` fun was called only once. `reducks:snap/3` will never
 replace an existing key until it is removed or expired (via `erldis:del` or 
 `expire`).
 
-`Make` must return following:
+`Make` is `fun` to be performed only if there is no data in the cache with 
+the correct key. The result of this function must be a list of tuples.
     
-    [{<<"fieldname">>, <<fieldvalue>>} | % As in erldis
-     {ttl, 60}] % Time-to-live of key in seconds or infinity if 
-                % you wan't expire key
+    [{<<"fieldname">>, <<fieldvalue>>} | ... ] % As in erldis `hmset`
                 
-... or something else in case of error.
+All tuples with binary field names will be stored in cache. The order of the 
+tuples in the list is not important.
+
+## TTL
+
+You can set expiration to hashset by adding tuple `{ttl, <expiration time>}`. 
+Expiration time is `integer()` value in seconds (redis convention). 
+
+    [ ... | {ttl, 60} ] % One minute expiration
 
 ## Timeouts
 
@@ -112,6 +118,8 @@ like `snap/3`
 This operation may be much less resource intensive than `snap/3`. Because 
 [Redis HGET](http://redis.io/commands/hget) has complexity O(1) instead O(N) 
 with [HGETAL](http://redis.io/commands/hgetall).
+
+
 
 
 
