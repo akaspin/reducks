@@ -4,7 +4,7 @@
 -compile(export_all).
 -include_lib("eunit/include/eunit.hrl").
 
-normal_timeout_te_() -> 
+normal_timeout_test_() -> 
     {"Timeout > make",
      setup, fun test_util:flushall/0,
      fun(_) -> 
@@ -19,7 +19,7 @@ normal_timeout_te_() ->
        [fun() -> race_op(I, 120000) end || I <- lists:seq(1, 10) ] }
      ]}
      }.
-small_timeout_te_() -> 
+small_timeout_test_() -> 
     {"Timeout = make",
      setup, fun test_util:flushall/0,
      fun(_) -> 
@@ -30,7 +30,7 @@ small_timeout_te_() ->
        [fun() -> race_op(I, 10) end || I <- lists:seq(1, 300) ] }
      }.
 
-def_timeout_te_() -> 
+def_timeout_test_() -> 
     {"Default timeout",
      setup, fun test_util:flushall/0,
      fun(_) -> 

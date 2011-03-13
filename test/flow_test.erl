@@ -29,14 +29,14 @@ found_test_()->
      fun(_) -> test_util:flushall() end,
      fun()-> 
              {ok, Client} = erldis:connect(),
-             io:format(user, ">~p~n", [{{D1F, D1V}, {D2F, D2V}}]),
+             {Key, {{D1F, D1V}, {D2F, D2V}}, {Make, Make1}} = get_assets(),
              
              ?assertEqual({ok, [{D1F, D1V}]}, 
                           reducks:snap(Client, {Key, D1F, D1V}, Make)),
              ?assertEqual({ok, [{D1F, D1V}]}, 
                           reducks:snap(Client, {Key, D2F, D2V}, Make1)),
              ?assertEqual({ok, found}, 
-                          reducks:snap(Client, {Key, D1F, D1V}, Make)),
+                          reducks:snap(Client, {Key, D1F, "value1"}, Make)),
              erldis:quit(Client)
      end}.
 
@@ -60,7 +60,7 @@ tags_test_() ->
      fun(_) -> test_util:flushall() end,
      fun()-> 
              {ok, Client} = erldis:connect(),
-             Key1 = <<"reducks-test:tag/one">>,
+             Key1 = "reducks-test:tag/one",
              Key2 = <<"reducks-test:tag/two">>,
              Key3 = <<"reducks-test:tag/three">>,
              Tag1 = <<"reducks-test:tag/1">>,
