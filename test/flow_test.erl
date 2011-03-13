@@ -49,7 +49,7 @@ crash_test_() ->
              {Key, {_, _}, {_, _}} = get_assets(),
              MakeCrash = fun() -> throw(test) end,
              
-             ?assertException(error, {throw, test}, 
+             ?assertException(error, _, 
                               reducks:snap(Client, Key, MakeCrash)),
              erldis:quit(Client)
      end}.

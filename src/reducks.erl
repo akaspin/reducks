@@ -111,32 +111,32 @@ purge(Client, Tags)->
 %% @private 
 set_data(Client, Key, Make, Timeout, KeyLock) ->
     erldis:set_pipelining(Client, true),
-    try Make() of
-        {ok, Data} ->
-            Fields = lists:filter(fun({K, _}) -> is_binary(K) end, Data),
-            erldis:hmset(Client, Key, Fields),
-            
-            % Set expiration if needed
-            case lists:keyfind(ttl, 1, Data) of
-                {ttl, TTL} -> erldis:expire(Client, Key, TTL);
-                false-> ok
-            end,
-            
-            % Set tags if needed
-            case lists:keyfind(tags, 1, Data) of
-                {tags, Tags} -> 
-                    [ erldis:sadd(Client, make_bin(T, <<":tag">>), Key) || 
-                        T <- Tags ];
-                false-> ok
-            end,
-            
-            cleanup(Client, KeyLock),
-            snap(Client, Key, {Make, Timeout})
+    try 
+        {ok, Data} = Make(),
+        Fields = lists:filter(fun({K, _}) -> is_binary(K) end, Data),
+        erldis:hmset(Client, Key, Fields),
+        
+        % Set expiration if needed
+        case lists:keyfind(ttl, 1, Data) of
+            {ttl, TTL} -> erldis:expire(Client, Key, TTL);
+            false-> ok
+        end,
+        
+        % Set tags if needed
+        case lists:keyfind(tags, 1, Data) of
+            {tags, Tags} -> 
+                [ erldis:sadd(Client, make_bin(T, <<":tag">>), Key) || 
+                    T <- Tags ];
+            false-> ok
+        end,
+        
+        cleanup(Client, KeyLock),
+        snap(Client, Key, {Make, Timeout})
     catch
         Err:Reason ->
             % Make  crashed
             cleanup(Client, KeyLock),
-            error({Err, Reason})
+            Err(Reason)
     end.
 
 make_bin(V, Add)->
