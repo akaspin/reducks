@@ -1,27 +1,32 @@
 %%% @version 0.1
 
 -module(reducks).
--export([snap/3, snap/4, purge/2]).
+-export([snap/3, purge/2]).
 
--type client()::pid().
 
--type key()::binary().
--type field()::binary().
--type value()::binary().
--type hashfield()::[{field(), value()}].
 
--type tag()::integer().
+snap(nocache, _, Make)->
+    {ok, Data} = Make(),
+    {ok, Data};
 
--type time_out()::integer().
+snap(connect, Spec, Make)->
+    {ok, Client} = erldis:connect(),
+    try
+        {ok, Data} = snap(Client, Spec, Make),
+        {ok, Data}
+    after
+        erldis:quit(Client)        
+    end;
 
--type make_fun()::fun(()-> [hashfield() | {ttl, integer()} | {tag, [tag()]}]).
--type make_spec():: {make_fun()} | {make_fun(), time_out()}.
-
-%% @doc Try to retrieve data from cache if present. Or put data.
--spec snap(Client::client(), Key::key(), Make::make_spec())-> 
-          {ok, [hashfield()]}.
-snap(Client, Key, {Make}) ->
-    snap(Client, Key, {Make, 120000});
+snap(Client, {Key, Field, Value}, {Make, Timeout}) ->
+    case erldis:hget(Client, Key, Field) of
+        Value ->
+            {ok, found};
+        _ ->
+            snap(Client, Key, {Make, Timeout})
+    end;
+snap(Client, {Key, Field, Value}, Make) ->
+    snap(Client, {Key, Field, Value}, {Make, 300000});
 snap(Client, Key, {Make, Timeout}) ->
     %% Try get data
     case catch erldis:hgetall(Client, Key) of
@@ -76,22 +81,11 @@ snap(Client, Key, {Make, Timeout}) ->
         Data -> 
             % all good - return data
             {ok, Data}
-    end.
-
-%% @doc Try to retrieve data with pre-test.
-snap(Client, Key, {Field, Value}, {Make}) ->
-    snap(Client, Key, {Field, Value}, {Make, 300000});
-
-snap(Client, Key, {Field, Value}, {Make, Timeout}) ->
-    case erldis:hget(Client, Key, Field) of
-        Value ->
-            {ok, equal};
-        _ ->
-            snap(Client, Key, {Make, Timeout})
-    end.
+    end;
+snap(Client, Key, Make) ->
+    snap(Client, Key, {Make, 120000}).
 
 %% @doc Purge keys by tags. 
--spec purge(Client::client(), Tags::[tag()]) -> integer().
 purge(Client, Tags)->
     TagKeys = [<<T/binary, ":tag">> || T <- Tags],
     Keys = erldis:sunion(Client, [<<T/binary, ":tag">> || T <- Tags]),

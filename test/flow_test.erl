@@ -12,31 +12,31 @@ persistence_test_() ->
              {ok, Client} = erldis:connect(),
              {Key, {Data, Data1}, {Make, Make1}} = get_assets(),
              
-             ?assertEqual({ok, [Data]}, reducks:snap(Client, Key, {Make})),
+             ?assertEqual({ok, [Data]}, reducks:snap(Client, Key, Make)),
              
              %% Data persist. New value can't replace old one
-             ?assertNot({ok, [Data1]} == reducks:snap(Client, Key, {Make1})),
-             ?assertEqual({ok, [Data]}, reducks:snap(Client, Key, {Make1})),
+             ?assertNot({ok, [Data1]} == reducks:snap(Client, Key, Make1)),
+             ?assertEqual({ok, [Data]}, reducks:snap(Client, Key, Make1)),
              
              erldis:delkeys(Client, [Key]),
-             ?assertEqual({ok, [Data1]}, reducks:snap(Client, Key, {Make1})),
+             ?assertEqual({ok, [Data1]}, reducks:snap(Client, Key, Make1)),
              erldis:quit(Client)
      end}.
 
-equal_test_()->
+found_test_()->
     {"Equal",
      setup, fun test_util:flushall/0,
      fun(_) -> test_util:flushall() end,
      fun()-> 
              {ok, Client} = erldis:connect(),
-             {Key, {Data, Data1}, {Make, Make1}} = get_assets(),
+             io:format(user, ">~p~n", [{{D1F, D1V}, {D2F, D2V}}]),
              
-             ?assertEqual({ok, [Data]}, 
-                          reducks:snap(Client, Key, Data, {Make})),
-             ?assertEqual({ok, [Data]}, 
-                          reducks:snap(Client, Key, Data1, {Make1})),
-             ?assertEqual({ok, equal}, 
-                          reducks:snap(Client, Key, Data, {Make})),
+             ?assertEqual({ok, [{D1F, D1V}]}, 
+                          reducks:snap(Client, {Key, D1F, D1V}, Make)),
+             ?assertEqual({ok, [{D1F, D1V}]}, 
+                          reducks:snap(Client, {Key, D2F, D2V}, Make1)),
+             ?assertEqual({ok, found}, 
+                          reducks:snap(Client, {Key, D1F, D1V}, Make)),
              erldis:quit(Client)
      end}.
 
@@ -50,7 +50,7 @@ crash_test_() ->
              MakeCrash = fun() -> throw(test) end,
              
              ?assertException(error, {throw, test}, 
-                              reducks:snap(Client, Key, {MakeCrash})),
+                              reducks:snap(Client, Key, MakeCrash)),
              erldis:quit(Client)
      end}.
 
@@ -67,17 +67,17 @@ tags_test_() ->
              Tag2 = <<"reducks-test:tag/2">>,
              
              reducks:snap(Client, Key1, 
-                          {fun()-> 
-                                   {ok, [{<<"f">>, <<"v">>}, {tags, [Tag1]}]} 
-                           end}),
+                          fun()-> 
+                                  {ok, [{<<"f">>, <<"v">>}, {tags, [Tag1]}]} 
+                          end),
              reducks:snap(Client, Key2, 
-                          {fun()-> 
+                          fun()-> 
                                    {ok, [{<<"f">>, <<"v">>}, {tags, [Tag2]}]} 
-                           end}),
+                           end),
              reducks:snap(Client, Key3, 
-                          {fun()-> {ok, [{<<"f">>, <<"v">>}, 
+                          fun()-> {ok, [{<<"f">>, <<"v">>}, 
                                          {tags, [Tag1, Tag2]}]} 
-                           end}),
+                           end),
              
              reducks:purge(Client, [Tag1]),
              

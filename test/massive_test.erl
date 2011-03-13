@@ -4,7 +4,7 @@
 -compile(export_all).
 -include_lib("eunit/include/eunit.hrl").
 
-normal_timeout_test_() -> 
+normal_timeout_te_() -> 
     {"Timeout > make",
      setup, fun test_util:flushall/0,
      fun(_) -> 
@@ -19,7 +19,7 @@ normal_timeout_test_() ->
        [fun() -> race_op(I, 120000) end || I <- lists:seq(1, 10) ] }
      ]}
      }.
-small_timeout_test_() -> 
+small_timeout_te_() -> 
     {"Timeout = make",
      setup, fun test_util:flushall/0,
      fun(_) -> 
@@ -30,7 +30,7 @@ small_timeout_test_() ->
        [fun() -> race_op(I, 10) end || I <- lists:seq(1, 300) ] }
      }.
 
-def_timeout_test_() -> 
+def_timeout_te_() -> 
     {"Default timeout",
      setup, fun test_util:flushall/0,
      fun(_) -> 
@@ -49,7 +49,7 @@ def_timeout_op(_) ->
     Make = make_make(Data),
     {ok, Client} = erldis:connect(),
     ?assertEqual({ok, Data}, 
-                 reducks:snap(Client, Key, {Make})),
+                 reducks:snap(Client, Key, Make)),
     incr(<<"reducks-test:gets">>),
     erldis:quit(Client).
 
