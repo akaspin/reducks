@@ -57,8 +57,8 @@ Basic usage is very simple. *reducks* working with hashsets. Feed into it the
             io:format("> Long operation done~n").
             {ok, Data}.
         end,
-    {ok, Data} = reducks:snap(Client, <<"somekey">>, {Make}),
-    {ok, Data1} = reducks:snap(Client, <<"somekey">>, {Make}),
+    {ok, Data} = reducks:snap(Client, <<"somekey">>, Make}),
+    {ok, Data1} = reducks:snap(Client, "somekey", Make),
     erldis:quit(Client),
     io:format("> One ~p~n", [Data]).
     io:format("> Two ~p~n", [Data1]).
@@ -75,7 +75,7 @@ processes.
 `Make` is `fun` to be performed only if there is no data in the cache with 
 the correct key. The result of this function must following.
     
-    {ok, [{<<"fieldname">>, <<fieldvalue>>} | ... ]} % As in erldis `hmset`
+    {ok, [{"fieldname", <<"fieldvalue">>} | ... ]} % As in erldis `hmset`
                 
 All tuples with binary field names will be stored in cache. The order of the 
 tuples in the list is not important.
@@ -106,15 +106,15 @@ As I wrote earlier, large timeouts is not a problem.
 ## Audit
 
 I often use [ETag](http://en.wikipedia.org/wiki/HTTP_ETag). With *reducks* you 
-can audit field in hashset with `snap/4`:
+can audit field in hashset with `snap/3`:
 
-    {ok, Data} = reducks:snap(Client, <<"key">>, 
-            {<<"field">>, <<"expectedvalue">>}, {Make}),
-    {ok, equal} = reducks:snap(Client, <<"key">>, 
-            {<<"field">>, <<"expectedvalue">>}, {Make}),
+    {ok, Data} = reducks:snap(Client, {"key", 
+            "field", "expectedvalue"}, Make),
+    {ok, found} = reducks:snap(Client, {"key", 
+            "field", "expectedvalue"}, Make),
             
 If field in hashset coincides with expected value, `snap/4` returns 
-`{ok, equal}` instead `{ok, Data}`. In all other cases, `snap/4` will behave 
+`{ok, found}` instead `{ok, Data}`. In all other cases, `snap/3` will behave 
 like `snap/3`
  
 This operation may be much less resource intensive than `snap/3`. Because 
@@ -124,13 +124,13 @@ with [HGETAL](http://redis.io/commands/hgetall).
 ## Tags
 
 You can tag keys with `reducks:snap`. Batteries included. Just add tuple 
-`{tags, [binary()]}` to result of make fun.
+`{tags, [atom()|string()|binary()]}` to result of make fun.
 
-    {ok, [... | {tags, [<<"tag-one">>, <<"tag-two">>]}]} % Two tags
+    {ok, [... | {tags, ["tag-one">>, "tag-two"]}]} % Two tags
     
 You can then delete all the keys marked with these tags by `reducks:purge/2`
 
-    reducks:purge(Client, [<<"tag-one">>, <<"tag-two">>])
+    reducks:purge(Client, ["tag-one", "tag-two"])
 
 
 
